@@ -1,0 +1,16 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "python.experiments.optInto": ["pythonTestAdapter"],
+    "python.testing.unittestEnabled": true,
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        ".", 
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "appService.defaultWebAppToDeploy": "/subscriptions/7cb48bef-4f46-4853-ae44-ad6633363efa/resourceGroups/williamsrg/providers/Microsoft.Web/sites/cust-CONA-wrapper-appsrv-poc",
+    "appService.deploySubpath": "src",
+}

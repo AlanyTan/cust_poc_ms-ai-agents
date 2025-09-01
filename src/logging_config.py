@@ -22,7 +22,7 @@ def configure_logging(log_file_name: Optional[str] = None, logger_name: str = "a
     # Stream handler (stdout)
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(logging.INFO)
-    stream_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    stream_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s-%(module)s.%(funcName)s: %(message)s")
     stream_handler.setFormatter(stream_formatter)
     logger.addHandler(stream_handler)
 

@@ -36,17 +36,19 @@ logger = configure_logging(os.getenv("APP_LOG_FILE", ""))
 agentID = os.environ.get("AZURE_EXISTING_AGENT_ID") if os.environ.get(
     "AZURE_EXISTING_AGENT_ID") else os.environ.get(
         "AZURE_AI_AGENT_ID")
-    
+
 proj_endpoint = os.environ.get("AZURE_EXISTING_AIPROJECT_ENDPOINT")
 
-def list_files_in_files_directory() -> List[str]:    
+
+def list_files_in_files_directory() -> List[str]:
     # Get the absolute path of the 'files' directory
     files_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), 'files'))
-    
+
     # List all files in the 'files' directory
     files = [f for f in os.listdir(files_directory) if os.path.isfile(os.path.join(files_directory, f))]
-    
+
     return files
+
 
 FILES_NAMES = list_files_in_files_directory()
 
@@ -66,7 +68,7 @@ async def create_index_maybe(
     """
     from api.search_index_manager import SearchIndexManager
     endpoint = os.environ.get('AZURE_AI_SEARCH_ENDPOINT')
-    embedding = os.getenv('AZURE_AI_EMBED_DEPLOYMENT_NAME')    
+    embedding = os.getenv('AZURE_AI_EMBED_DEPLOYMENT_NAME')
     if endpoint and embedding:
         try:
             aoai_connection = await ai_client.connections.get_default(
@@ -74,7 +76,7 @@ async def create_index_maybe(
         except ValueError as e:
             logger.error("Error creating index: {e}")
             return
-        
+
         embed_api_key = None
         if aoai_connection.credentials and isinstance(aoai_connection.credentials, ApiKeyCredentials):
             embed_api_key = aoai_connection.credentials.api_key
@@ -145,7 +147,7 @@ async def get_available_tool(
     else:
         logger.info(
             "agent: index was not initialized, falling back to file search.")
-        
+
         # Upload files for file search
         for file_name in FILES_NAMES:
             file_path = _get_file_path(file_name)
@@ -170,9 +172,10 @@ async def create_agent(ai_client: AIProjectClient,
     tool = await get_available_tool(ai_client, creds)
     toolset = AsyncToolSet()
     toolset.add(tool)
-    
-    instructions = "Use AI Search always. Avoid to use base knowledge." if isinstance(tool, AzureAISearchTool) else "Use File Search always.  Avoid to use base knowledge."
-    
+
+    instructions = "Use AI Search always. Avoid to use base knowledge." if isinstance(
+        tool, AzureAISearchTool) else "Use File Search always.  Avoid to use base knowledge."
+
     agent = await ai_client.agents.create_agent(
         model=os.environ["AZURE_AI_AGENT_DEPLOYMENT_NAME"],
         name=os.environ["AZURE_AI_AGENT_NAME"],
@@ -215,7 +218,7 @@ async def initialize_resources():
                                 f", ID: {agent_object.id}")
                             os.environ["AZURE_EXISTING_AGENT_ID"] = agent_object.id
                             return
-                        
+
                 # Create a new agent
                 agent = await create_agent(ai_client, creds)
                 os.environ["AZURE_EXISTING_AGENT_ID"] = agent.id
@@ -234,7 +237,7 @@ def on_starting(server):
 max_requests = 1000
 max_requests_jitter = 50
 log_file = "-"
-bind = "0.0.0.0:50505"
+bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
 
 if not os.getenv("RUNNING_IN_PRODUCTION"):
     reload = True

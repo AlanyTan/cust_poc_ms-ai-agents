@@ -18,6 +18,7 @@ from logging_config import configure_logging
 enable_trace = False
 logger = None
 
+
 @contextlib.asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     agent = None
@@ -28,7 +29,7 @@ async def lifespan(app: fastapi.FastAPI):
         ai_project = AIProjectClient(
             credential=DefaultAzureCredential(exclude_shared_token_cache_credential=True),
             endpoint=proj_endpoint,
-            api_version = "2025-05-15-preview" # Evaluations yet not supported on stable (api_version="2025-05-01")
+            api_version="2025-05-15-preview"  # Evaluations yet not supported on stable (api_version="2025-05-01")
         )
         logger.info("Created AIProjectClient")
 
@@ -50,7 +51,7 @@ async def lifespan(app: fastapi.FastAPI):
                 logger.info("Configured Application Insights for tracing.")
 
         if agent_id:
-            try: 
+            try:
                 agent = await ai_project.agents.get_agent(agent_id)
                 logger.info("Agent already exists, skipping creation")
                 logger.info(f"Fetched agent, agent ID: {agent.id}")
@@ -74,7 +75,7 @@ async def lifespan(app: fastapi.FastAPI):
 
         app.state.ai_project = ai_project
         app.state.agent = agent
-        
+
         yield
 
     except Exception as e:
@@ -115,13 +116,18 @@ def create_app():
         logger.info("Tracing is not enabled")
 
     directory = os.path.join(os.path.dirname(__file__), "static")
-    app = fastapi.FastAPI(lifespan=lifespan)
+    app = fastapi.FastAPI(
+        lifespan=lifespan,
+        openapi_version="3.0.1"
+    )
     app.mount("/static", StaticFiles(directory=directory), name="static")
-    
+
     # Mount React static files
     # Uncomment the following lines if you have a React frontend
     # react_directory = os.path.join(os.path.dirname(__file__), "static/react")
     # app.mount("/static/react", StaticFiles(directory=react_directory), name="react")
+
+    app.openapi_version = "3.0.3"
 
     from . import routes  # Import routes
     app.include_router(routes.router)
@@ -134,5 +140,5 @@ def create_app():
             status_code=500,
             content={"detail": "Internal server error"}
         )
-    
+
     return app
