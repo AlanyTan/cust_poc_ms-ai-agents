@@ -4,7 +4,7 @@
 import secrets
 from typing import Optional
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi import FastAPI, Depends, HTTPException, status, Response
+from fastapi import Body, FastAPI, Depends, HTTPException, status, Response
 from opentelemetry import trace
 import asyncio
 import json
@@ -38,6 +38,7 @@ from azure.ai.projects.models import (
     EvaluatorIds
 )
 
+from .ms_resource_graph_client import get_tags, get_monitored_metrics
 
 # Create a logger for this module
 logger = logging.getLogger("azureaiapp")
@@ -68,6 +69,127 @@ class ChatRequest(BaseModel):
         }
 
 
+# Azure Monitor Alert Payload Models
+class AlertConditionDimension(BaseModel):
+    name: Optional[str] = Field(None, description="Name of the dimension")
+    value: Optional[str] = Field(None, description="Value of the dimension")
+
+
+class AlertConditionAllOf(BaseModel):
+    metricName: str = Field(description="Name of the metric")
+    metricNamespace: Optional[str] = Field(None, description="Namespace of the metric")
+    operator: str = Field(description="Operator used in the condition (e.g., GreaterThan)")
+    threshold: str = Field(description="Threshold value as string")
+    timeAggregation: str = Field(description="Time aggregation method (e.g., Sum, Average)")
+    dimensions: list[AlertConditionDimension] = Field(default=[], description="Metric dimensions")
+    metricValue: float = Field(description="Current metric value")
+    webTestName: Optional[str] = Field(None, description="Web test name for availability tests")
+
+
+class AlertCondition(BaseModel):
+    windowSize: str = Field(description="Time window size (ISO 8601 duration)")
+    allOf: list[AlertConditionAllOf] = Field(description="List of conditions")
+    windowStartTime: str = Field(description="Window start time (ISO 8601)")
+    windowEndTime: str = Field(description="Window end time (ISO 8601)")
+
+
+class AlertContext(BaseModel):
+    properties: Optional[dict] = Field(None, description="Additional properties")
+    conditionType: str = Field(description="Type of condition (e.g., WebtestLocationAvailabilityCriteria)")
+    condition: AlertCondition = Field(description="Alert condition details")
+
+
+class AlertEssentials(BaseModel):
+    alertId: str = Field(description="Unique alert identifier")
+    alertRule: str = Field(description="Name of the alert rule")
+    severity: str = Field(description="Alert severity (e.g., Sev0, Sev1, Sev2, Sev3, Sev4)")
+    signalType: str = Field(description="Type of signal (e.g., Metric, Log)")
+    monitorCondition: str = Field(description="Monitor condition (e.g., Fired, Resolved)")
+    monitoringService: str = Field(description="Monitoring service (e.g., Platform, ApplicationInsights)")
+    alertTargetIDs: list[str] = Field(description="List of target resource IDs")
+    configurationItems: list[str] = Field(description="Configuration items affected")
+    originAlertId: str = Field(description="Original alert identifier")
+    firedDateTime: str = Field(description="When the alert was fired (ISO 8601)")
+    description: str = Field(description="Alert description")
+    essentialsVersion: str = Field(description="Version of essentials schema")
+    alertContextVersion: str = Field(description="Version of alert context schema")
+
+
+class AlertData(BaseModel):
+    essentials: AlertEssentials = Field(description="Essential alert information")
+    alertContext: AlertContext = Field(description="Detailed alert context")
+    customProperties: Optional[dict] = Field(None, description="Custom properties")
+
+
+class AlertBody(BaseModel):
+    schemaId: str = Field(description="Schema identifier for the alert")
+    data: AlertData = Field(description="Alert data payload")
+
+
+class MonitorPayload(BaseModel):
+    headers: dict[str, str] = Field(description="HTTP headers from the monitor request")
+    body: AlertBody = Field(description="Alert payload body")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "headers": {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Host": "prod-73.eastus.logic.azure.com",
+                    "User-Agent": "IcMBroadcaster/1.0",
+                    "X-CorrelationContext": "RkkKACgAAAACAAAAEAAOcr4CoiHuSZvSeZpqt4BRAQAQACSLkvJrA8RDhFCwUCrNEAQ="
+                },
+                "body": {
+                    "schemaId": "azureMonitorCommonAlertSchema",
+                    "data": {
+                        "essentials": {
+                            "alertId": "/subscriptions/11111111-1111-1111-1111-111111111111/providers/Microsoft.AlertsManagement/alerts/12345678-1234-1234-1234-1234567890ab",
+                            "alertRule": "test-availabilityTest-test-applicationInsights",
+                            "severity": "Sev4",
+                            "signalType": "Metric",
+                            "monitorCondition": "Fired",
+                            "monitoringService": "Platform",
+                            "alertTargetIDs": [
+                                "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/test-RG/providers/microsoft.insights/components/test-applicationInsights"
+                            ],
+                            "configurationItems": ["test-applicationInsights"],
+                            "originAlertId": "11111111-1111-1111-1111-111111111111_test-RG_microsoft.insights_metricalerts_test-availabilityTest-test-applicationInsights_1234567890",
+                            "firedDateTime": "2025-08-29T18:00:16.117Z",
+                            "description": "Alert rule description",
+                            "essentialsVersion": "1.0",
+                            "alertContextVersion": "1.0"
+                        },
+                        "alertContext": {
+                            "properties": None,
+                            "conditionType": "WebtestLocationAvailabilityCriteria",
+                            "condition": {
+                                "windowSize": "PT5M",
+                                "allOf": [
+                                    {
+                                        "metricName": "Failed Location",
+                                        "metricNamespace": None,
+                                        "operator": "GreaterThan",
+                                        "threshold": "2",
+                                        "timeAggregation": "Sum",
+                                        "dimensions": [],
+                                        "metricValue": 5,
+                                        "webTestName": "test-availabilityTest-test-applicationInsights"
+                                    }
+                                ],
+                                "windowStartTime": "2025-08-29T18:00:16.117Z",
+                                "windowEndTime": "2025-08-29T18:00:16.117Z"
+                            }
+                        },
+                        "customProperties": {
+                            "customKey1": "value1",
+                            "customKey2": "value2"
+                        }
+                    }
+                }
+            }
+        }
+
+
 security = HTTPBasic()
 
 username = os.getenv("WEB_APP_USERNAME")
@@ -77,7 +199,7 @@ basic_auth = username and password
 # Health check endpoint
 
 
-@router.get("/healthz")
+@router.get("/healthz", summary="Health check endpoint")
 async def healthz():
     return Response(status_code=200)
 
@@ -254,12 +376,12 @@ async def get_result(
             yield serialize_sse_event({'type': "error", 'message': str(e)})
 
 
-@router.get("/chat/history")
+@router.get("/chat/history", summary="Get chat conversation history")
 async def history(
     request: Request,
     ai_project: AIProjectClient = Depends(get_ai_project),
     agent: Agent = Depends(get_agent),
-        _=auth_dependency
+    _=auth_dependency
 ):
     with tracer.start_as_current_span("chat_history"):
         # Retrieve the thread ID from the cookies (if available).
@@ -306,14 +428,26 @@ async def history(
         raise HTTPException(status_code=500, detail=f"Error list message: {e}")
 
 
-@router.get("/agent")
+@router.get("/agent", summary="Get AI agent information")
 async def get_chat_agent(
     request: Request
 ):
     return JSONResponse(content=get_agent(request).as_dict())
 
 
-@router.post("/chat")
+@router.post(
+    "/chat",
+    summary="Send message to AI agent",
+    description="Send a message to the AI agent and receive a streaming response",
+    responses={
+        200: {
+            "description": "Server-Sent Events stream with agent response",
+            "content": {"text/event-stream": {"example": "data: {\"content\": \"Hello!\", \"type\": \"message\"}\n\n"}}
+        },
+        400: {"description": "Bad request - invalid input"},
+        500: {"description": "Internal server error"}
+    }
+)
 async def chat(
     request: Request,
     chat_request: ChatRequest,
@@ -385,6 +519,149 @@ async def chat(
         return response
 
 
+@router.post("/api/send_payload", summary="sending monitoring payload to AI Agent")
+async def process_payload(
+    request: Request,
+    payload: MonitorPayload = Body(..., description="The payload message request"),
+    agent: Agent = Depends(get_agent),
+    ai_project: AIProjectClient = Depends(get_ai_project),
+    app_insights_conn_str: str = Depends(get_app_insights_conn_str)
+):
+    """
+    Test endpoint that logs all incoming parameter values for debugging purposes.
+    """
+    try:
+        # Log basic request information
+        logger.debug(f"=== write_parameters_to_log called ===")
+        logger.debug(f"Request method: {request.method}")
+        logger.debug(f"Request URL: {request.url}")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+
+        # Log cookies
+        if request.cookies:
+            logger.debug(f"Request cookies: {dict(request.cookies)}")
+        else:
+            logger.debug("No cookies in request")
+
+        request_data = await request.json()
+        logger.debug(f"Request body: {request_data}")
+
+        # Log the chat request body
+        logger.debug(f"Payload: {payload.model_dump()}")
+
+        # Log agent information
+        if agent:
+            logger.debug(f"Agent ID: {agent.id}")
+            logger.debug(f"Agent name: {agent.name}")
+            logger.debug(f"Agent model: {agent.model}")
+        else:
+            logger.info("No agent available")
+
+        # Log AI project information
+        if ai_project:
+            logger.info(f"AI Project type: {type(ai_project)}")
+            logger.info(f"AI Project endpoint: {getattr(ai_project, '_endpoint', 'Unknown')}")
+        else:
+            logger.info("No AI project available")
+
+        # Log app insights connection string (safely)
+        if app_insights_conn_str:
+            # Only log first and last 10 characters for security
+            safe_conn_str = f"{app_insights_conn_str[:10]}...{app_insights_conn_str[-10:]}" if len(
+                app_insights_conn_str) > 20 else "[REDACTED]"
+            logger.info(f"App Insights connection string (partial): {safe_conn_str}")
+        else:
+            logger.info("No App Insights connection string")
+
+        # Log client information
+        client_host = request.client.host if request.client else "Unknown"
+        client_port = request.client.port if request.client else "Unknown"
+        logger.debug(f"Client: {client_host}:{client_port}")
+
+        # Log query parameters if any
+        if request.query_params:
+            logger.debug(f"Query parameters: {dict(request.query_params)}")
+        else:
+            logger.debug("No query parameters")
+
+        logger.debug(f"=== End of parameter logging ===")
+
+        if (hasattr(payload, 'body') and hasattr(payload.body, 'data')):
+            payload_data = payload.body.data
+            if hasattr(payload_data, 'essentials') and hasattr(payload_data.essentials, 'alertTargetIDs'):
+                targetIDs = payload_data.essentials.alertTargetIDs
+            else:
+                logger.warning("AlertTargetIDs not found in payload: %s", payload)
+                targetIDs = []
+        else:
+            raise ValueError("Invalid payload structure")
+
+        tags = []
+        for targetID in targetIDs:
+            id_tags = get_tags(targetID)
+            tags.append({f"{targetID}": id_tags})
+
+        metrics = []
+        for targetID in targetIDs:
+            if (hasattr(payload_data, 'alertContext') and hasattr(payload_data.alertContext, 'condition')
+                    and hasattr(payload_data.alertContext.condition, 'allOf')):
+                metric_names = []
+                for m in payload_data.alertContext.condition.allOf:
+                    metric_info = {
+                        "metricName": m.metricName,
+                        "metricNamespace": m.metricNamespace,
+                        "metricValue": m.metricValue,
+                        "threshold": m.threshold,
+                        "operator": m.operator,
+                        "timeAggregation": m.timeAggregation
+                    }
+                    metric_names.append(m.metricName)
+                id_metrics = get_monitored_metrics(targetID, metric_info.get("metricNamespace", ""),
+                                                   metric_names)
+                metrics.append({f"{targetID}": id_metrics})
+
+        # payload_dict = {**payload.model_dump(), "tags": tags, "metrics": metrics}
+        # chat_request = ChatRequest(message=f'The payload representing the alert is {payload_dict}')
+        chat_request = ChatRequest(message=f'The alert payload is {payload.model_dump()},'
+                                   f' the resource tags are {tags}, and the monitored metric readings for the past'
+                                   f' hour are {metrics}. '
+                                   f'Please help to analyze the alert payload, incorporate the meaning of the tags '
+                                   f'and the recent metric reading, and provide possible reasons, '
+                                   'if the issue persists, or is an anomaly and remediation suggestions.')
+        agent_response = await chat(request, chat_request, get_agent(request), get_ai_project(request))
+
+        agent_response_body = [str(section) async for section in agent_response.body_iterator]
+
+        return_message = ""
+        for data in agent_response_body:
+            data_obj = json.loads(data.removeprefix("data: "))
+            if data_obj.get('type') == 'message':
+                return_message += (data_obj.get('content', '') + "\n")
+                logger.info(f"Agent response message: {data_obj.get('content')}")
+        import markdown
+        return_message_html = markdown.markdown(return_message)
+        return (return_message_html.replace("\n", "<br>"))
+        # return JSONResponse({
+        #     "status": "success",
+        #     "message": "All parameters logged successfully",
+        #     "timestamp": str(asyncio.get_event_loop().time()),
+        #     "logged_items": [
+        #         "request_info",
+        #         "cookies",
+        #         "chat_request",
+        #         "agent_info",
+        #         "ai_project_info",
+        #         "app_insights_connection",
+        #         "client_info",
+        #         "query_params"
+        #     ]
+        # })
+
+    except Exception as e:
+        logger.error(f"Error in write_parameters_to_log: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error logging parameters: {str(e)}")
+
+
 def read_file(path: str) -> str:
     with open(path, 'r') as file:
         return file.read()
@@ -429,7 +706,7 @@ def run_agent_evaluation(
         asyncio.create_task(run_evaluation())
 
 
-@router.get("/config/azure")
+@router.get("/config/azure", summary="Get Azure configuration")
 async def get_azure_config(_=auth_dependency):
     """Get Azure configuration for frontend use"""
     try:

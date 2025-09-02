@@ -117,6 +117,9 @@ def create_app():
 
     directory = os.path.join(os.path.dirname(__file__), "static")
     app = fastapi.FastAPI(
+        title="CONA AI Agent Assistant",
+        description="Helper service to enrich context before invoking Azure AI Foundry Agent",
+        version="0.0.9",
         lifespan=lifespan,
         openapi_version="3.0.1"
     )
@@ -127,7 +130,7 @@ def create_app():
     # react_directory = os.path.join(os.path.dirname(__file__), "static/react")
     # app.mount("/static/react", StaticFiles(directory=react_directory), name="react")
 
-    app.openapi_version = "3.0.3"
+    app.openapi_version = '3.0.0'
 
     from . import routes  # Import routes
     app.include_router(routes.router)

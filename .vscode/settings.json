@@ -1,5 +1,8 @@
 {
+    "python.defaultInterpreterPath": "/workspaces/cust_poc_ms-ai-agents/.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
     "python.analysis.autoImportCompletions": true,
+    "python.analysis.typeCheckingMode": "basic",
     "python.experiments.optInto": ["pythonTestAdapter"],
     "python.testing.unittestEnabled": true,
     "python.testing.unittestArgs": [
@@ -13,4 +16,5 @@
     "python.testing.nosetestsEnabled": false,
     "appService.defaultWebAppToDeploy": "/subscriptions/7cb48bef-4f46-4853-ae44-ad6633363efa/resourceGroups/williamsrg/providers/Microsoft.Web/sites/cust-CONA-wrapper-appsrv-poc",
     "appService.deploySubpath": "src",
+    "python-envs.pythonProjects": []
 }
