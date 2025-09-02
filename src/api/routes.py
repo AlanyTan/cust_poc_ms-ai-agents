@@ -623,9 +623,9 @@ async def process_payload(
         # payload_dict = {**payload.model_dump(), "tags": tags, "metrics": metrics}
         # chat_request = ChatRequest(message=f'The payload representing the alert is {payload_dict}')
         chat_request = ChatRequest(message=f'The alert payload is {payload.model_dump()},'
-                                   f' the resource tags are {tags}, and the monitored metric readings for the past'
-                                   f' hour are {metrics}. '
-                                   f'Please help to analyze the alert payload, incorporate the meaning of the tags '
+                                   f' the resource tags are {tags}. The monitored metric readings for the past'
+                                   f' 4 hour are \n{metrics}\n. '
+                                   f'Please analyze the alert payload, incorporate the meaning of the tags '
                                    f'and the recent metric reading, and provide possible reasons, '
                                    'if the issue persists, or is an anomaly and remediation suggestions.')
         agent_response = await chat(request, chat_request, get_agent(request), get_ai_project(request))
