@@ -53,10 +53,13 @@ directory = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=directory)
 
 # Create a new FastAPI router
+
 router = fastapi.APIRouter()
 
-# Pydantic models for request/response documentation
+# List all agents endpoint
 
+
+# Pydantic models for request/response documentation
 
 class ChatRequest(BaseModel):
     message: str = Field(description="The user's message to send to the AI agent")
@@ -344,6 +347,30 @@ async def index(request: Request, _=auth_dependency):
     )
 
 
+async def agent_list(request: Request) -> list[Agent]:
+    try:
+        ai_project = get_ai_project(request)
+        agents = ai_project.agents.list_agents()
+        agents_ = []
+        async for a in agents:
+            agents_.append(a)
+        return agents_
+    except Exception as e:
+        logger.error(f"Error listing agents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list agents")
+
+
+@router.get("/agents", summary="List all agents in the AI project")
+async def list_agents(request: Request):
+    try:
+        agent_list_ = await agent_list(request)
+        agent_list_dicts = [agent.as_dict() for agent in agent_list_]
+        return JSONResponse(content=agent_list_dicts)
+    except Exception as e:
+        logger.error(f"Error listing agents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list agents")
+
+
 async def get_result(
     request: Request,
     thread_id: str,
@@ -431,8 +458,83 @@ async def history(
 @router.get("/agent", summary="Get AI agent information")
 async def get_chat_agent(
     request: Request
-):
+) -> JSONResponse:
     return JSONResponse(content=get_agent(request).as_dict())
+
+
+@router.get(
+    "/api/activities",
+    summary="Get AI agent activities",
+    response_description="A dictionary containing activity counts and breakdowns by bottler",
+    responses={
+        200: {
+            "description": "A dictionary with activity statistics and breakdowns by bottler",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "interactive_monitors": 12,
+                        "P1_opened": 5,
+                        "P2_opened": 3,
+                        "P1_closed": 6,
+                        "P2_closed": 3,
+                        "break_down_by_bottler": [
+                            {
+                                "bottler_name": "CONA",
+                                "interactive_monitors": 2,
+                                "P1_opened": 1,
+                                "P2_opened": 2,
+                                "P1_closed": 1,
+                                "P2_closed": 1
+                            },
+                            {
+                                "bottler_name": "Swire",
+                                "interactive_monitors": 2,
+                                "P1_opened": 1,
+                                "P2_opened": 2,
+                                "P1_closed": 1,
+                                "P2_closed": 1
+                            },
+                            {
+                                "bottler_name": "Arca",
+                                "interactive_monitors": 2,
+                                "P1_opened": 1,
+                                "P2_opened": 2,
+                                "P1_closed": 1,
+                                "P2_closed": 1
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
+async def get_agent_activities(
+    request: Request,
+    begin_time: Optional[str] = fastapi.Query(
+        None,
+        description="Begin time (ISO 8601 UTC datetime string) for activity filtering"
+    ),
+    end_time: Optional[str] = fastapi.Query(
+        None,
+        description="End time (ISO 8601 UTC datetime string) for activity filtering"
+    )
+) -> JSONResponse:
+    """
+    Returns AI agent activities within the specified time range.
+
+    Query Parameters:
+    - **begin_time**: ISO 8601 UTC datetime string (optional)
+    - **end_time**: ISO 8601 UTC datetime string (optional)
+
+    Response:
+    - Dictionary with activity counts and breakdown by bottler.
+    """
+
+    activities_path = os.path.join(os.path.dirname(__file__), "data/activities.json")
+    with open(activities_path, "r") as f:
+        activities = json.load(f)
+    return JSONResponse(content=activities)
 
 
 @router.post(
@@ -586,13 +688,31 @@ async def process_payload(
 
         logger.debug(f"=== End of parameter logging ===")
 
-        if (hasattr(payload, 'body') and hasattr(payload.body, 'data')):
+        targetIDs = []
+        cis = []
+        alert_type = "Not Specified"
+        correlation_id = ""
+        if (hasattr(payload, 'body') and hasattr(payload.body, 'data') and hasattr(payload.body.data, 'essentials')):
             payload_data = payload.body.data
-            if hasattr(payload_data, 'essentials') and hasattr(payload_data.essentials, 'alertTargetIDs'):
-                targetIDs = payload_data.essentials.alertTargetIDs
+            essential_data = payload.body.data.essentials
+            if hasattr(essential_data, 'alertTargetIDs'):
+                targetIDs = essential_data.alertTargetIDs
             else:
-                logger.warning("AlertTargetIDs not found in payload: %s", payload)
-                targetIDs = []
+                logger.warning("alertTargetIDs not found in payload: %s", payload)
+
+            if hasattr(essential_data, 'configurationItems'):
+                cis = essential_data.configurationItems
+            else:
+                logger.warning("configurationItems not found in payload: %s", payload)
+
+            if hasattr(essential_data, 'monitorCondition'):
+                alert_type = essential_data.monitorCondition
+
+            if hasattr(essential_data, 'alertRule'):
+                alert_rule = essential_data.alertRule
+
+            if hasattr(essential_data, 'originAlertId'):
+                correlation_id = essential_data.originAlertId
         else:
             raise ValueError("Invalid payload structure")
 
@@ -622,10 +742,17 @@ async def process_payload(
 
         # payload_dict = {**payload.model_dump(), "tags": tags, "metrics": metrics}
         # chat_request = ChatRequest(message=f'The payload representing the alert is {payload_dict}')
-        chat_request = ChatRequest(message=f'The alert payload is {payload.model_dump()},'
-                                   f' the resource tags are {tags}. The monitored metric readings for the past'
-                                   f' 4 hour are \n{metrics}\n. '
-                                   f'Please analyze the alert payload, incorporate the meaning of the tags '
+
+        agent_list_ = await agent_list(request)
+
+        # check in agent_list if an agent is called "AI Agent - triage", if found
+        # call chat() function to ask this agent, based on the payload, tags, metrics, and
+        # the description of each agent, which agent is best suited to handle this payload
+
+        chat_request = ChatRequest(message=f'The alert is {alert_type} with the payload: {payload.model_dump()},'
+                                   f' the resource tags are {tags}. \n'
+                                   f'The monitored metric readings for the past 4 hour are \n{metrics}\n. '
+                                   f'Please analyze the alert payload, take into consideration of the meaning of the tags '
                                    f'and the recent metric reading, and provide possible reasons, '
                                    'if the issue persists, or is an anomaly and remediation suggestions.')
         agent_response = await chat(request, chat_request, get_agent(request), get_ai_project(request))
@@ -638,24 +765,88 @@ async def process_payload(
             if data_obj.get('type') == 'message':
                 return_message += (data_obj.get('content', '') + "\n")
                 logger.info(f"Agent response message: {data_obj.get('content')}")
+
+        impact_tag = "P3"
+        for t in tags:
+            for k, v in t.items():
+                if v and isinstance(v, dict):
+                    impact_tag = v.get("BusinessImpact", "P3")
+                    if impact_tag:
+                        break
+
+        impact_tag = int(impact_tag.removeprefix("P"))
+
+        bottler = "CONA"
+        for t in tags:
+            for k, v in t.items():
+                if v and isinstance(v, dict):
+                    bottler = v.get("Bottler", "")
+                    if bottler:
+                        break
+
+        # ## temp mock  to count alert/resolved
+        activities_path = os.path.join(os.path.dirname(__file__), "data/activities.json")
+        with open(activities_path, "r") as f:
+            activities = json.load(f)
+        bottlers = [ac for ac in activities.get("break_down_by_bottler", []) if ac.get("bottler_name") == bottler]
+        if bottlers and isinstance(bottlers[0], dict):
+            bottler_activities = bottlers[0]
+        else:
+            bottler_activities = {"bottler_name": bottler}
+
+        if alert_type == "Resolved":
+            if impact_tag == 1:
+                activities["P1_closed"] = activities.get("P1_closed", 0) + 1
+                bottler_activities["P1_closed"] = bottler_activities.get("P1_closed", 0) + 1
+            elif impact_tag == 2:
+                activities["P2_closed"] = activities.get("P2_closed", 0) + 1
+                bottler_activities["P2_closed"] = bottler_activities.get("P2_closed", 0) + 1
+            elif impact_tag == 3:
+                activities["P3_closed"] = activities.get("P3_closed", 0) + 1
+                bottler_activities["P3_closed"] = bottler_activities.get("P3_closed", 0) + 1
+        else:
+            if impact_tag == 1:
+                activities["P1_opened"] = activities.get("P1_opened", 0) + 1
+                bottler_activities["P1_opened"] = bottler_activities.get("P1_opened", 0) + 1
+            elif impact_tag == 2:
+                activities["P2_opened"] = activities.get("P2_opened", 0) + 1
+                bottler_activities["P1_opened"] = bottler_activities.get("P1_opened", 0) + 1
+            elif impact_tag == 3:
+                activities["P3_opened"] = activities.get("P3_opened", 0) + 1
+                bottler_activities["P1_opened"] = bottler_activities.get("P1_opened", 0) + 1
+        activities_path = os.path.join(os.path.dirname(__file__), "data/activities.json")
+        with open(activities_path, "w") as f:
+            json.dump(activities, f)
+
+        # ## end of mock count persist (This logic is incorrect, and does not yet persist, it only shows data changes)
+
+        from .servicenow_client import ServiceNowClient
+        sn_client = ServiceNowClient()
+        if alert_type == "Fired":
+            sn_incident_data = {
+                "short_description": f"Alert: {alert_rule} on resources {cis} - {alert_type}",
+                "description": return_message,
+                "impact": impact_tag,
+                "urgency": impact_tag
+            }
+            if correlation_id:
+                sn_incident_data["correlation_id"] = correlation_id
+                sn_incident_data["correlation_display"] = "AzMon"
+
+            sn_result = sn_client.create_incident(**sn_incident_data)
+            logger.info(f"ServiceNow incident created: {sn_result}")
+        elif alert_type == "Resolved":
+            try:
+                orig_ticket = sn_client.search_incidents(correlation_id=correlation_id)
+                orig_ticket_number = orig_ticket[0].get("number") if orig_ticket else None
+                orig_ticket_sys_id = orig_ticket[0].get("sys_id") if orig_ticket else None
+                sn_result = sn_client.resolve_incident(str(orig_ticket_sys_id))
+                logger.info(f"ServiceNow incident resolved: {sn_result}")
+            except Exception as e:
+                logger.error(f"Error resolving ServiceNow incident: {e}")
         import markdown
         return_message_html = markdown.markdown(return_message)
         return (return_message_html.replace("\n", "<br>"))
-        # return JSONResponse({
-        #     "status": "success",
-        #     "message": "All parameters logged successfully",
-        #     "timestamp": str(asyncio.get_event_loop().time()),
-        #     "logged_items": [
-        #         "request_info",
-        #         "cookies",
-        #         "chat_request",
-        #         "agent_info",
-        #         "ai_project_info",
-        #         "app_insights_connection",
-        #         "client_info",
-        #         "query_params"
-        #     ]
-        # })
 
     except Exception as e:
         logger.error(f"Error in write_parameters_to_log: {e}", exc_info=True)

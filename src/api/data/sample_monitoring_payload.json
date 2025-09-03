@@ -1,1 +1,78 @@
- {"headers": {"Expect": "100-continue", "Host": "prod-73.eastus.logic.azure.com", "Max-Forwards": "10", "User-Agent": "IcMBroadcaster/1.0", "X-CorrelationContext": "RkkKACgAAAACAAAAEAAOcr4CoiHuSZvSeZpqt4BRAQAQACSLkvJrA8RDhFCwUCrNEAQ=", "X-ARR-LOG-ID": "d9f994c7-04d1-4d63-a1fb-79571d8d36b1", "CLIENT-IP": "104.47.217.151:48533", "DISGUISED-HOST": "prod-73.eastus.logic.azure.com", "X-SITE-DEPLOYMENT-ID": "flowfe-prod-bl-rp00-app-01__b79a", "WAS-DEFAULT-HOSTNAME": "flowfe-prod-bl-rp00-app-01.flow-prod-bl-rp00-ase-01.p.azurewebsites.net", "X-Forwarded-Proto": "https", "X-AppService-Proto": "https", "X-ARR-SSL": "2048|256|CN=Microsoft Azure RSA TLS Issuing CA 07, O=Microsoft Corporation, C=US|CN=eastus.logic.azure.com, O=Microsoft Corporation, L=Redmond, S=WA, C=US", "X-Forwarded-TlsVersion": "1.3", "X-Forwarded-For": "104.47.217.151:48533", "X-Original-URL": "/workflows/3891013ded43450793b851360135fcd0/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=W7pJOG-9KTqJ2kilZoe4j0MqZMWPg5PpWNqwSqZ5qn8", "X-WAWS-Unencoded-URL": "/workflows/3891013ded43450793b851360135fcd0/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=W7pJOG-9KTqJ2kilZoe4j0MqZMWPg5PpWNqwSqZ5qn8", "Content-Length": "3075", "Content-Type": "application/json; charset=utf-8"}, "body": {"schemaId": "azureMonitorCommonAlertSchema", "data": {"essentials": {"alertId": "/subscriptions/11111111-1111-1111-1111-111111111111/providers/Microsoft.AlertsManagement/alerts/12345678-1234-1234-1234-1234567890ab", "alertRule": "test-availabilityTest-test-applicationInsights", "severity": "Sev4", "signalType": "Metric", "monitorCondition": "Fired", "monitoringService": "Platform", "alertTargetIDs": ["/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/test-RG/providers/microsoft.insights/components/test-applicationInsights"], "configurationItems": ["test-applicationInsights"], "originAlertId": "11111111-1111-1111-1111-111111111111_test-RG_microsoft.insights_metricalerts_test-availabilityTest-test-applicationInsights_1234567890", "firedDateTime": "2025-08-29T18:00:16.117Z", "description": "Alert rule description", "essentialsVersion": "1.0", "alertContextVersion": "1.0"}, "alertContext": {"properties": null, "conditionType": "WebtestLocationAvailabilityCriteria", "condition": {"windowSize": "PT5M", "allOf": [{"metricName": "Failed Location", "metricNamespace": null, "operator": "GreaterThan", "threshold": "2", "timeAggregation": "Sum", "dimensions": [], "metricValue": 5.0, "webTestName": "test-availabilityTest-test-applicationInsights"}], "windowStartTime": "2025-08-29T18:00:16.117Z", "windowEndTime": "2025-08-29T18:00:16.117Z"}}, "customProperties": {"customKey1": "value1", "customKey2": "value2"}}}}
+{
+    "headers": {
+        "Cookie": "dtCookie=v_4_srv_7_sn_119C4AC54AE612BBAE0B3331170948E4_perc_100000_ol_0_mul_1_app-3Aea7c4b59f27d43eb_1",
+        "Expect": "100-continue",
+        "Host": "prod-73.eastus.logic.azure.com",
+        "Max-Forwards": "10",
+        "User-Agent": "IcMBroadcaster/1.0",
+        "X-CorrelationContext": "RkkKACgAAAACAAAAEACGIWd9yz57QY5eF1gW6WkDAQAQAK4ikUDRdaVEhYezctcJ0O8=",
+        "X-ARR-LOG-ID": "970d594e-5dbc-48b9-a178-a616a976a967",
+        "CLIENT-IP": "4.151.103.92:9920",
+        "DISGUISED-HOST": "prod-73.eastus.logic.azure.com",
+        "X-SITE-DEPLOYMENT-ID": "flowfe-prod-bl-rp00-app-02__e48c",
+        "WAS-DEFAULT-HOSTNAME": "flowfe-prod-bl-rp00-app-02.flow-prod-bl-rp00-ase-02.p.azurewebsites.net",
+        "X-Forwarded-Proto": "https",
+        "X-AppService-Proto": "https",
+        "X-ARR-SSL": "2048|256|CN=Microsoft Azure RSA TLS Issuing CA 07, O=Microsoft Corporation, C=US|CN=eastus.logic.azure.com, O=Microsoft Corporation, L=Redmond, S=WA, C=US",
+        "X-Forwarded-TlsVersion": "1.3",
+        "X-Forwarded-For": "4.151.103.92:9920",
+        "X-Original-URL": "/workflows/3891013ded43450793b851360135fcd0/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=W7pJOG-9KTqJ2kilZoe4j0MqZMWPg5PpWNqwSqZ5qn8",
+        "X-WAWS-Unencoded-URL": "/workflows/3891013ded43450793b851360135fcd0/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=W7pJOG-9KTqJ2kilZoe4j0MqZMWPg5PpWNqwSqZ5qn8",
+        "Content-Length": "1992",
+        "Content-Type": "application/json; charset=utf-8"
+    },
+    "body": {
+        "schemaId": "azureMonitorCommonAlertSchema",
+        "data": {
+            "essentials": {
+                "alertId": "/subscriptions/7cb48bef-4f46-4853-ae44-ad6633363efa/providers/Microsoft.AlertsManagement/alerts/7144ff57-db07-439e-85f9-5042d24ff000",
+                "alertRule": "VM Memory Available",
+                "targetResourceType": "microsoft.compute/virtualmachines",
+                "alertRuleID": "/subscriptions/7cb48bef-4f46-4853-ae44-ad6633363efa/resourceGroups/williamsrg/providers/microsoft.insights/metricAlerts/VM Memory Available",
+                "severity": "Sev3",
+                "signalType": "Metric",
+                "monitorCondition": "Fired",
+                "targetResourceGroup": "williamsrg",
+                "monitoringService": "Platform",
+                "alertTargetIDs": [
+                    "/subscriptions/7cb48bef-4f46-4853-ae44-ad6633363efa/resourcegroups/williamsrg/providers/microsoft.compute/virtualmachines/sandbox-linux-vm"
+                ],
+                "configurationItems": [
+                    "sandbox-linux-vm"
+                ],
+                "originAlertId": "7cb48bef-4f46-4853-ae44-ad6633363efa_williamsrg_microsoft.insights_metricAlerts_VM Memory Available_1792563022",
+                "firedDateTime": "2025-09-03T06:39:09.6320073Z",
+                "description": "This alert would trigger if any VM in resource group williamsrg has a memory availability less than 25%",
+                "essentialsVersion": "1.0",
+                "alertContextVersion": "1.0",
+                "investigationLink": "https://portal.azure.com/#view/Microsoft_Azure_Monitoring_Alerts/Issue.ReactView/alertId/%2fsubscriptions%2f7cb48bef-4f46-4853-ae44-ad6633363efa%2fresourceGroups%2fwilliamsrg%2fproviders%2fMicrosoft.AlertsManagement%2falerts%2f7144ff57-db07-439e-85f9-5042d24ff000"
+            },
+            "alertContext": {
+                "properties": null,
+                "conditionType": "MultipleResourceMultipleMetricCriteria",
+                "condition": {
+                    "windowSize": "PT5M",
+                    "allOf": [
+                        {
+                            "metricName": "Available Memory Percentage",
+                            "metricNamespace": "Microsoft.Compute/virtualMachines",
+                            "operator": "LessThan",
+                            "threshold": "25",
+                            "timeAggregation": "Average",
+                            "dimensions": [],
+                            "metricValue": 22.3,
+                            "webTestName": null
+                        }
+                    ],
+                    "staticThresholdFailingPeriods": {
+                        "numberOfEvaluationPeriods": 0,
+                        "minFailingPeriodsToAlert": 0
+                    },
+                    "windowStartTime": "2025-09-03T06:31:04.381Z",
+                    "windowEndTime": "2025-09-03T06:36:04.381Z"
+                }
+            },
+            "customProperties": null
+        }
+    }
+}
